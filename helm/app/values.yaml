@@ -1,0 +1,35 @@
+replicaCount: 2
+
+image:
+  repository: nginx
+  tag: latest
+
+containerPort: 80
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  host: "example.com"
+
+config:
+  myConfigKey: "default-value"
+
+secret:
+  mySecretKey: ""
+
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+
+pvc:
+  storage: "1Gi"
+
+cron:
+  schedule: "*/5 * * * *"
+
+pdb:
+  enabled: false
