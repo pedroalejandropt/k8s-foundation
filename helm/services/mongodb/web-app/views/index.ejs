@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Mongo Web App</title>
+</head>
+
+<body>
+    <h1>📦 Items in Mongo</h1>
+
+    <form method="GET" action="/">
+        <input name="search" placeholder="Search..." value="<%= search %>" />
+        <button type="submit">🔍</button>
+    </form>
+
+    <ul>
+        <% items.forEach(item=> { %>
+            <li>
+                <form method="POST" action="/update/<%= item._id %>" style="display:inline;">
+                    <input name="name" value="<%= item.name %>" />
+                    <button type="submit">✏️</button>
+                </form>
+
+                <form method="POST" action="/delete/<%= item._id %>" style="display:inline;">
+                    <button type="submit">🗑️</button>
+                </form>
+            </li>
+            <% }) %>
+    </ul>
+
+    <h2>Add New Item</h2>
+    <form method="POST" action="/add">
+        <input name="name" placeholder="New item..." required />
+        <button type="submit">➕</button>
+    </form>
+</body>
+
+</html>
