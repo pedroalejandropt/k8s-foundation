@@ -31,8 +31,8 @@ flowchart TD
   end
     A -- port 27017 --> B
     C -- connects to --> B
-    D -- exposes (port 3000) --> C
-    E["User Browser"] -- HTTP (port 3000) --> D
+    D -- exposes port 3000 --> C
+    E["User Browser"] -- HTTP port 3000 --> D
 ```
 
 ## Components
