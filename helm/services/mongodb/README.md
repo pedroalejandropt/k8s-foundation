@@ -21,6 +21,7 @@ helm/services/mongodb/
 
 ## 🗺️ Architecture Overview
 
+```mermaid
 flowchart TD
  subgraph subGraph0["Kubernetes Cluster"]
         A["MongoDB Pod"]
@@ -32,6 +33,7 @@ flowchart TD
     C -- connects to --> B
     D -- exposes (port 3000) --> C
     E["User Browser"] -- HTTP (port 3000) --> D
+```
 
 ## Components
 
