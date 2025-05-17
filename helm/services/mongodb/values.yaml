@@ -1,0 +1,10 @@
+namespace: default
+
+service:
+  protocol: TCP
+  port: 27017
+  targetPort: 27017
+
+image:
+  name: mongo:latest
+  containerPort: 27017
