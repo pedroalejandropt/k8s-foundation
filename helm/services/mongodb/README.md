@@ -19,6 +19,20 @@ helm/services/mongodb/
         └── index.ejs
 ```
 
+## 🗺️ Architecture Overview
+
+flowchart TD
+ subgraph subGraph0["Kubernetes Cluster"]
+        A["MongoDB Pod"]
+        B["MongoDB Service (ClusterIP)"]
+        C["Node.js Web App Pod"]
+        D["Web App Service (NodePort)"]
+  end
+    A -- port 27017 --> B
+    C -- connects to --> B
+    D -- exposes (port 3000) --> C
+    E["User Browser"] -- HTTP (port 3000) --> D
+
 ## Components
 
 ### 1. MongoDB Deployment
