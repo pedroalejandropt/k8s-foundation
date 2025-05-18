@@ -1,0 +1,23 @@
+
+grafana:
+  image: grafana/grafana:latest
+  secret:
+    name: grafana-secrets
+    user: admin
+    password: admin
+  persistence:
+    name: grafana-pvc
+    enabled: true
+    size: 5Gi
+  dashboards:
+    enabled: true
+  service:
+    type: ClusterIP
+    ports:
+      port: 80
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  ingress:
+    enabled: true
+    host: grafana.example.com

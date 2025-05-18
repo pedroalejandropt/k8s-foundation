@@ -1,0 +1,44 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "grafana.fullname" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "grafana.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "grafana.name" . }}
+    spec:
+      containers:
+        - name: {{ include "grafana.name" . }}
+          image: {{ .Values.grafana.image }}
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.grafana.secret.name }}
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.grafana.secret.name }}
+                  key: admin-password
+          volumeMounts:
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+            - name: grafana-config
+              mountPath: /etc/grafana/grafana.ini
+              subPath: grafana.ini
+      volumes:
+        - name: grafana-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.grafana.persistence.name }}
+        - name: grafana-config
+          configMap:
+            name: grafana-config

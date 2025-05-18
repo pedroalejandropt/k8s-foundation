@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+data:
+  grafana.ini: |
+    [auth]
+    disable_login_form = false
+
+    [users]
+    allow_sign_up = false
+    default_theme = dark
+
+    [paths]
+    data = /var/lib/grafana
+    logs = /var/log/grafana
+    plugins = /var/lib/grafana/plugins
+    provisioning = /etc/grafana/provisioning
+
+    [security]
+    admin_user = {{ .Values.grafana.secret.user }}
+    admin_password = {{ .Values.grafana.secret.password }}
+
+    [session]
+    provider = file
+    provider_config = sessions
+
+    [database]
+    type = sqlite3
+    path = grafana.db
+
+    [dashboards]
+    default_home_dashboard_path = /etc/grafana/provisioning/dashboards/default.json
