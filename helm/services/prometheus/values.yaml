@@ -1,0 +1,29 @@
+prometheus:
+  image: prom/prometheus:latest
+  retention: "15d"
+  service:
+    type: ClusterIP
+    ports:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: http
+  config:
+    name: prometheus-config
+  persistence:
+    name: prometheus-pvc
+    enabled: true
+    size: 8Gi
+  ingress:
+    host: prometheus.example.com
+  role:
+    name: prometheus-role
+
+kubeStateMetrics:
+  enabled: true
+  image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.10.1
+  port: 8080
+  service:
+    portName: http
+    port: 8080
+    targetPort: 8080
