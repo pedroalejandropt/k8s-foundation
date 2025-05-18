@@ -25,8 +25,8 @@ This repository includes:
 │   │   ├── Chart.yaml
 │   │   └── values.yaml
 │   ├── services/
-│   │   ├── 
-│   │   ├── 
+│   │   ├── mongodb/
+│   │   ├── grafana/
 │   │   └── 
 │   └── README.md
 ├── .gitignore
