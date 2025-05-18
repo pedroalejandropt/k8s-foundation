@@ -72,8 +72,8 @@ flowchart TD
 2. Install the chart:
 
    ```sh
-   helm install <release-name> <chart>
-   helm install v1 helm/services/mongodb
+   helm install <release-name> <chart-directory>
+   helm install mongodb .
    ```
 
    This will deploy both MongoDB (if included in your templates).
