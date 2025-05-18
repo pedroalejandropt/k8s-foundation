@@ -3,7 +3,7 @@ const bodyParser = require("body-parser");
 const { MongoClient, ObjectId } = require("mongodb");
 const app = express();
 
-const uri = "mongodb://mongodb-mongodb.default.svc.cluster.local:27017";
+const uri = "mongodb://mongodb-database.default.svc.cluster.local:27017";
 const client = new MongoClient(uri);
 
 let db;
