@@ -27,6 +27,7 @@ This repository includes:
 │   ├── services/
 │   │   ├── mongodb/
 │   │   ├── grafana/
+│   │   ├── prometheus/
 │   │   └── 
 │   └── README.md
 ├── .gitignore
