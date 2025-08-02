@@ -168,14 +168,20 @@ graph TD;
 ## 🧪 Usage
 
 ```bash
+# Display information about the application
+helm show all|chart|crds|readme|values helm/app
+
 # Lint the chart (check for errors)
 helm lint helm/app
 
 # Render templates locally (see what will be deployed)
 helm template helm/app
 
-# Install the chart (initial deployment)
+# Install the chart (initial release)
 helm install app helm/app
+
+# Update or install the chart.
+helm upgrade --install app helm/app
 
 # Upgrade the release (apply new values or changes)
 helm upgrade app helm/app
@@ -188,7 +194,20 @@ helm package helm/app
 
 # Install using a specific values file
 helm install app helm/app -f values.yaml
+
+# Show all the 'versions/revisions' from a specific release
+helm history app
+
+# Rollack to a specific release 'version/revision'
+helm rollback app revision-id
+
+## --atomic flag for an implicit rollback
+helm upgrade app helm/app --atomic
 ```
+
+> Note: When you use the --atomic flag, if the release fails, the rollback happens automatically.
+However, the previous release could not be restored completely in some cases — for example, if a resource was deleted or modified outside of Helm, or if a failed upgrade created resources that conflict with the rollback.
+This means --atomic does not guarantee a perfect rollback, but it ensures that Helm will attempt to return to the last known good state.
 
 ---
 
