@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Loki Web App</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2rem;
+        }
+
+        button {
+            margin-right: 10px;
+        }
+
+        pre {
+            background: #f3f3f3;
+            padding: 1rem;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Test Loki</h1>
+
+    <button onclick="sendLog()">Send log</button>
+    <button onclick="getLogs()">Get logs</button>
+
+    <h2>Result:</h2>
+    <pre id="output"></pre>
+
+    <script>
+        async function sendLog() {
+            const res = await fetch('/api/send-log');
+            const data = await res.json();
+            document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function getLogs() {
+            const res = await fetch('/api/get-logs');
+            const data = await res.json();
+            document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+
+</html>
