@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.loki.config.name }}
+data:
+  loki.yaml: |
+    auth_enabled: false
+
+    server:
+      http_listen_port: 3100
+
+    common:
+      path: /loki
+      replication_factor: 1
+
+      storage:
+{{- if eq .Values.loki.storage.type "s3" }}
+        s3:
+          bucketnames: {{ .Values.loki.storage.s3.bucketnames }}
+          endpoint: {{ .Values.loki.storage.s3.endpoint }}
+          access_key_id: {{ .Values.loki.storage.s3.access_key_id }}
+          secret_access_key: {{ .Values.loki.storage.s3.secret_access_key }}
+{{- else if eq .Values.loki.storage.type "azure" }}
+        azure:
+          container_name: {{ .Values.loki.storage.azure.container_name }}
+          account_name: {{ .Values.loki.storage.azure.account_name }}
+          account_key: {{ .Values.loki.storage.azure.account_key }}
+{{- else if eq .Values.loki.storage.type "gcs" }}
+        gcs:
+          bucket_name: {{ .Values.loki.storage.gcs.bucket_name }}
+          service_account: |
+{{ .Values.loki.storage.gcs.service_account_json | indent 12 }}
+{{- end }}
+
+    schema_config:
+      configs:
+        - from: 2020-10-24
+          store: boltdb-shipper
+          object_store: {{ .Values.loki.storage.type }}
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
+
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /loki/index
+        cache_location: /loki/cache
+        shared_store: {{ .Values.loki.storage.type }}
+
+{{- if eq .Values.loki.storage.type "filesystem" }}
+      filesystem:
+        directory: /loki/chunks
+{{- end }}
+
+
+    limits_config:
+      enforce_metric_name: false
+
+    chunk_store_config:
+      max_look_back_period: 0s
+
+    table_manager:
+      retention_deletes_enabled: {{ .Values.loki.retention.enabled }}
+      retention_period: {{ .Values.loki.retention.period }}

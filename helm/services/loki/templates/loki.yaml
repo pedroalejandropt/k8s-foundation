@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "loki.fullname" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "loki.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "loki.name" . }}
+    spec:
+      containers:
+      - name: {{ include "loki.name" . }}
+        image: {{ .Values.loki.image }}
+        args:
+        - -config.file=/etc/loki/local-config.yaml
+        ports:
+        - containerPort: 3100

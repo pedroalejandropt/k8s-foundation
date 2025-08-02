@@ -1,0 +1,651 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+
+    clients:
+      - url: http://loki-logger:3100/loki/api/v1/push
+      
+    positions:
+      filename: /tmp/positions.yaml
+
+    scrape_configs:
+      - job_name: flog_scrape
+        docker_sd_configs:
+          - host: unix:///var/run/docker.sock
+            refresh_interval: 5s
+            filters:
+              - name: label
+                values: ["logging=promtail"]
+        relabel_configs:
+          - source_labels: ['__meta_docker_container_name']
+            regex: '/(.*)'
+            target_label: 'container'
+          - source_labels: ['__meta_docker_container_log_stream']
+            target_label: 'logstream'
+          - source_labels: ['__meta_docker_container_label_logging_jobname']
+            target_label: 'job'
+      # 1. Scrape pods with the label 'name'
+      - pipeline_stages:
+        - docker:
+        job_name: kubernetes-pods-name
+        kubernetes_sd_configs:
+        - role: pod
+        relabel_configs:
+        # Set __service__ label from pod label 'name'
+        - source_labels:
+          - __meta_kubernetes_pod_label_name
+          target_label: __service__
+        # Set __host__ label from node name
+        - source_labels:
+          - __meta_kubernetes_pod_node_name
+          target_label: __host__
+        # Drop targets with empty __service__ label
+        - action: drop
+          regex: ^$
+          source_labels:
+          - __service__
+        # Set 'job' label as <namespace>/<service>
+        - action: replace
+          replacement: $1
+          separator: /
+          source_labels:
+          - __meta_kubernetes_namespace
+          - __service__
+          target_label: job
+        # Set 'namespace' label
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_namespace
+          target_label: namespace
+        # Set 'instance' label from pod name
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_pod_name
+          target_label: instance
+        # Set 'container_name' label
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_pod_container_name
+          target_label: container_name
+        # Map all pod labels to log labels
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        # Set log file path for this container
+        - replacement: /var/log/pods/*$1/*.log
+          separator: /
+          source_labels:
+          - __meta_kubernetes_pod_uid
+          - __meta_kubernetes_pod_container_name
+          target_label: __path__
+      # 2. Scrape pods with the label 'app' (but not 'name')
+      - pipeline_stages:
+        - docker:
+        job_name: kubernetes-pods-app
+        kubernetes_sd_configs:
+        - role: pod
+        relabel_configs:
+        # Drop pods that have a 'name' label (handled above)
+        - action: drop
+          regex: .+
+          source_labels:
+          - __meta_kubernetes_pod_label_name
+        # Set __service__ label from pod label 'app'
+        - source_labels:
+          - __meta_kubernetes_pod_label_app
+          target_label: __service__
+        # Set __host__ label from node name
+        - source_labels:
+          - __meta_kubernetes_pod_node_name
+          target_label: __host__
+        # Drop targets with empty __service__ label
+        - action: drop
+          regex: ^$
+          source_labels:
+          - __service__
+        # Set 'job' label as <namespace>/<service>
+        - action: replace
+          replacement: $1
+          separator: /
+          source_labels:
+          - __meta_kubernetes_namespace
+          - __service__
+          target_label: job
+        # Set 'namespace' label
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_namespace
+          target_label: namespace
+        # Set 'instance' label from pod name
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_pod_name
+          target_label: instance
+        # Set 'container_name' label
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_pod_container_name
+          target_label: container_name
+        # Map all pod labels to log labels
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        # Set log file path for this container
+        - replacement: /var/log/pods/*$1/*.log
+          separator: /
+          source_labels:
+          - __meta_kubernetes_pod_uid
+          - __meta_kubernetes_pod_container_name
+          target_label: __path__
+      # 3. Scrape pods managed by direct controllers (like Deployments, but not with 'name' or 'app' labels)
+      - pipeline_stages:
+        - docker:
+        job_name: kubernetes-pods-direct-controllers
+        kubernetes_sd_configs:
+        - role: pod
+        relabel_configs:
+        # Drop pods with 'name' or 'app' labels (handled above)
+        - action: drop
+          regex: .+
+          separator: ''
+          source_labels:
+          - __meta_kubernetes_pod_label_name
+          - __meta_kubernetes_pod_label_app
+        # Drop pods whose controller name matches a hash (handled by indirect controller job)
+        - action: drop
+          regex: ^([0-9a-z-.]+)(-[0-9a-f]{8,10})$
+          source_labels:
+          - __meta_kubernetes_pod_controller_name
+        # Set __service__ label from controller name
+        - source_labels:
+          - __meta_kubernetes_pod_controller_name
+          target_label: __service__
+        # Set __host__ label from node name
+        - source_labels:
+          - __meta_kubernetes_pod_node_name
+          target_label: __host__
+        # Drop targets with empty __service__ label
+        - action: drop
+          regex: ^$
+          source_labels:
+          - __service__
+        # Set 'job' label as <namespace>/<service>
+        - action: replace
+          replacement: $1
+          separator: /
+          source_labels:
+          - __meta_kubernetes_namespace
+          - __service__
+          target_label: job
+        # Set 'namespace' label
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_namespace
+          target_label: namespace
+        # Set 'instance' label from pod name
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_pod_name
+          target_label: instance
+        # Set 'container_name' label
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_pod_container_name
+          target_label: container_name
+        # Map all pod labels to log labels
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        # Set log file path for this container
+        - replacement: /var/log/pods/*$1/*.log
+          separator: /
+          source_labels:
+          - __meta_kubernetes_pod_uid
+          - __meta_kubernetes_pod_container_name
+          target_label: __path__
+      # 4. Scrape pods managed by indirect controllers (like ReplicaSets, with hashed controller names)
+      - pipeline_stages:
+        - docker:
+        job_name: kubernetes-pods-indirect-controller
+        kubernetes_sd_configs:
+        - role: pod
+        relabel_configs:
+        # Drop pods with 'name' or 'app' labels (handled above)
+        - action: drop
+          regex: .+
+          separator: ''
+          source_labels:
+          - __meta_kubernetes_pod_label_name
+          - __meta_kubernetes_pod_label_app
+        # Keep only pods whose controller name matches a hash (indirect controllers)
+        - action: keep
+          regex: ^([0-9a-z-.]+)(-[0-9a-f]{8,10})$
+          source_labels:
+          - __meta_kubernetes_pod_controller_name
+        # Set __service__ label from controller name (without hash)
+        - action: replace
+          regex: ^([0-9a-z-.]+)(-[0-9a-f]{8,10})$
+          source_labels:
+          - __meta_kubernetes_pod_controller_name
+          target_label: __service__
+        # Set __host__ label from node name
+        - source_labels:
+          - __meta_kubernetes_pod_node_name
+          target_label: __host__
+        # Drop targets with empty __service__ label
+        - action: drop
+          regex: ^$
+          source_labels:
+          - __service__
+        # Set 'job' label as <namespace>/<service>
+        - action: replace
+          replacement: $1
+          separator: /
+          source_labels:
+          - __meta_kubernetes_namespace
+          - __service__
+          target_label: job
+        # Set 'namespace' label
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_namespace
+          target_label: namespace
+        # Set 'instance' label from pod name
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_pod_name
+          target_label: instance
+        # Set 'container_name' label
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_pod_container_name
+          target_label: container_name
+        # Map all pod labels to log labels
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        # Set log file path for this container
+        - replacement: /var/log/pods/*$1/*.log
+          separator: /
+          source_labels:
+          - __meta_kubernetes_pod_uid
+          - __meta_kubernetes_pod_container_name
+          target_label: __path__
+      # 5. Scrape static pods (with 'component' label and config mirror annotation)
+      - pipeline_stages:
+        - docker:
+        job_name: kubernetes-pods-static
+        kubernetes_sd_configs:
+        - role: pod
+        relabel_configs:
+        # Drop pods without the config mirror annotation (not static pods)
+        - action: drop
+          regex: ^$
+          source_labels:
+          - __meta_kubernetes_pod_annotation_kubernetes_io_config_mirror
+        # Set __service__ label from pod label 'component'
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_pod_label_component
+          target_label: __service__
+        # Set __host__ label from node name
+        - source_labels:
+          - __meta_kubernetes_pod_node_name
+          target_label: __host__
+        # Drop targets with empty __service__ label
+        - action: drop
+          regex: ^$
+          source_labels:
+          - __service__
+        # Set 'job' label as <namespace>/<service>
+        - action: replace
+          replacement: $1
+          separator: /
+          source_labels:
+          - __meta_kubernetes_namespace
+          - __service__
+          target_label: job
+        # Set 'namespace' label
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_namespace
+          target_label: namespace
+        # Set 'instance' label from pod name
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_pod_name
+          target_label: instance
+        # Set 'container_name' label
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_pod_container_name
+          target_label: container_name
+        # Map all pod labels to log labels
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        # Set log file path for this container
+        - replacement: /var/log/pods/*$1/*.log
+          separator: /
+          source_labels:
+          - __meta_kubernetes_pod_annotation_kubernetes_io_config_mirror
+          - __meta_kubernetes_pod_container_name
+          target_label: __path__
+      
+
+
+  # promtail.yaml: |
+  #   server:
+  #     http_listen_port: 9080
+  #     grpc_listen_port: 0
+
+  #   clients:
+  #     - url: http://loki-logger:3100/loki/api/v1/push
+      
+  #   positions:
+  #     filename: /tmp/positions.yaml
+
+  #   scrape_configs:
+  #     # 1. Scrape pods with the label 'name'
+  #     - pipeline_stages:
+  #       - docker:
+  #       job_name: kubernetes-pods-name
+  #       kubernetes_sd_configs:
+  #       - role: pod
+  #       relabel_configs:
+  #       # Set __service__ label from pod label 'name'
+  #       - source_labels:
+  #         - __meta_kubernetes_pod_label_name
+  #         target_label: __service__
+  #       # Set __host__ label from node name
+  #       - source_labels:
+  #         - __meta_kubernetes_pod_node_name
+  #         target_label: __host__
+  #       # Drop targets with empty __service__ label
+  #       - action: drop
+  #         regex: ^$
+  #         source_labels:
+  #         - __service__
+  #       # Set 'job' label as <namespace>/<service>
+  #       - action: replace
+  #         replacement: $1
+  #         separator: /
+  #         source_labels:
+  #         - __meta_kubernetes_namespace
+  #         - __service__
+  #         target_label: job
+  #       # Set 'namespace' label
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_namespace
+  #         target_label: namespace
+  #       # Set 'instance' label from pod name
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_pod_name
+  #         target_label: instance
+  #       # Set 'container_name' label
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_pod_container_name
+  #         target_label: container_name
+  #       # Map all pod labels to log labels
+  #       - action: labelmap
+  #         regex: __meta_kubernetes_pod_label_(.+)
+  #       # Set log file path for this container
+  #       - replacement: /var/log/pods/*$1/*.log
+  #         separator: /
+  #         source_labels:
+  #         - __meta_kubernetes_pod_uid
+  #         - __meta_kubernetes_pod_container_name
+  #         target_label: __path__
+  #     # 2. Scrape pods with the label 'app' (but not 'name')
+  #     - pipeline_stages:
+  #       - docker:
+  #       job_name: kubernetes-pods-app
+  #       kubernetes_sd_configs:
+  #       - role: pod
+  #       relabel_configs:
+  #       # Drop pods that have a 'name' label (handled above)
+  #       - action: drop
+  #         regex: .+
+  #         source_labels:
+  #         - __meta_kubernetes_pod_label_name
+  #       # Set __service__ label from pod label 'app'
+  #       - source_labels:
+  #         - __meta_kubernetes_pod_label_app
+  #         target_label: __service__
+  #       # Set __host__ label from node name
+  #       - source_labels:
+  #         - __meta_kubernetes_pod_node_name
+  #         target_label: __host__
+  #       # Drop targets with empty __service__ label
+  #       - action: drop
+  #         regex: ^$
+  #         source_labels:
+  #         - __service__
+  #       # Set 'job' label as <namespace>/<service>
+  #       - action: replace
+  #         replacement: $1
+  #         separator: /
+  #         source_labels:
+  #         - __meta_kubernetes_namespace
+  #         - __service__
+  #         target_label: job
+  #       # Set 'namespace' label
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_namespace
+  #         target_label: namespace
+  #       # Set 'instance' label from pod name
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_pod_name
+  #         target_label: instance
+  #       # Set 'container_name' label
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_pod_container_name
+  #         target_label: container_name
+  #       # Map all pod labels to log labels
+  #       - action: labelmap
+  #         regex: __meta_kubernetes_pod_label_(.+)
+  #       # Set log file path for this container
+  #       - replacement: /var/log/pods/*$1/*.log
+  #         separator: /
+  #         source_labels:
+  #         - __meta_kubernetes_pod_uid
+  #         - __meta_kubernetes_pod_container_name
+  #         target_label: __path__
+  #     # 3. Scrape pods managed by direct controllers (like Deployments, but not with 'name' or 'app' labels)
+  #     - pipeline_stages:
+  #       - docker:
+  #       job_name: kubernetes-pods-direct-controllers
+  #       kubernetes_sd_configs:
+  #       - role: pod
+  #       relabel_configs:
+  #       # Drop pods with 'name' or 'app' labels (handled above)
+  #       - action: drop
+  #         regex: .+
+  #         separator: ''
+  #         source_labels:
+  #         - __meta_kubernetes_pod_label_name
+  #         - __meta_kubernetes_pod_label_app
+  #       # Drop pods whose controller name matches a hash (handled by indirect controller job)
+  #       - action: drop
+  #         regex: ^([0-9a-z-.]+)(-[0-9a-f]{8,10})$
+  #         source_labels:
+  #         - __meta_kubernetes_pod_controller_name
+  #       # Set __service__ label from controller name
+  #       - source_labels:
+  #         - __meta_kubernetes_pod_controller_name
+  #         target_label: __service__
+  #       # Set __host__ label from node name
+  #       - source_labels:
+  #         - __meta_kubernetes_pod_node_name
+  #         target_label: __host__
+  #       # Drop targets with empty __service__ label
+  #       - action: drop
+  #         regex: ^$
+  #         source_labels:
+  #         - __service__
+  #       # Set 'job' label as <namespace>/<service>
+  #       - action: replace
+  #         replacement: $1
+  #         separator: /
+  #         source_labels:
+  #         - __meta_kubernetes_namespace
+  #         - __service__
+  #         target_label: job
+  #       # Set 'namespace' label
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_namespace
+  #         target_label: namespace
+  #       # Set 'instance' label from pod name
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_pod_name
+  #         target_label: instance
+  #       # Set 'container_name' label
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_pod_container_name
+  #         target_label: container_name
+  #       # Map all pod labels to log labels
+  #       - action: labelmap
+  #         regex: __meta_kubernetes_pod_label_(.+)
+  #       # Set log file path for this container
+  #       - replacement: /var/log/pods/*$1/*.log
+  #         separator: /
+  #         source_labels:
+  #         - __meta_kubernetes_pod_uid
+  #         - __meta_kubernetes_pod_container_name
+  #         target_label: __path__
+  #     # 4. Scrape pods managed by indirect controllers (like ReplicaSets, with hashed controller names)
+  #     - pipeline_stages:
+  #       - docker:
+  #       job_name: kubernetes-pods-indirect-controller
+  #       kubernetes_sd_configs:
+  #       - role: pod
+  #       relabel_configs:
+  #       # Drop pods with 'name' or 'app' labels (handled above)
+  #       - action: drop
+  #         regex: .+
+  #         separator: ''
+  #         source_labels:
+  #         - __meta_kubernetes_pod_label_name
+  #         - __meta_kubernetes_pod_label_app
+  #       # Keep only pods whose controller name matches a hash (indirect controllers)
+  #       - action: keep
+  #         regex: ^([0-9a-z-.]+)(-[0-9a-f]{8,10})$
+  #         source_labels:
+  #         - __meta_kubernetes_pod_controller_name
+  #       # Set __service__ label from controller name (without hash)
+  #       - action: replace
+  #         regex: ^([0-9a-z-.]+)(-[0-9a-f]{8,10})$
+  #         source_labels:
+  #         - __meta_kubernetes_pod_controller_name
+  #         target_label: __service__
+  #       # Set __host__ label from node name
+  #       - source_labels:
+  #         - __meta_kubernetes_pod_node_name
+  #         target_label: __host__
+  #       # Drop targets with empty __service__ label
+  #       - action: drop
+  #         regex: ^$
+  #         source_labels:
+  #         - __service__
+  #       # Set 'job' label as <namespace>/<service>
+  #       - action: replace
+  #         replacement: $1
+  #         separator: /
+  #         source_labels:
+  #         - __meta_kubernetes_namespace
+  #         - __service__
+  #         target_label: job
+  #       # Set 'namespace' label
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_namespace
+  #         target_label: namespace
+  #       # Set 'instance' label from pod name
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_pod_name
+  #         target_label: instance
+  #       # Set 'container_name' label
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_pod_container_name
+  #         target_label: container_name
+  #       # Map all pod labels to log labels
+  #       - action: labelmap
+  #         regex: __meta_kubernetes_pod_label_(.+)
+  #       # Set log file path for this container
+  #       - replacement: /var/log/pods/*$1/*.log
+  #         separator: /
+  #         source_labels:
+  #         - __meta_kubernetes_pod_uid
+  #         - __meta_kubernetes_pod_container_name
+  #         target_label: __path__
+  #     # 5. Scrape static pods (with 'component' label and config mirror annotation)
+  #     - pipeline_stages:
+  #       - docker:
+  #       job_name: kubernetes-pods-static
+  #       kubernetes_sd_configs:
+  #       - role: pod
+  #       relabel_configs:
+  #       # Drop pods without the config mirror annotation (not static pods)
+  #       - action: drop
+  #         regex: ^$
+  #         source_labels:
+  #         - __meta_kubernetes_pod_annotation_kubernetes_io_config_mirror
+  #       # Set __service__ label from pod label 'component'
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_pod_label_component
+  #         target_label: __service__
+  #       # Set __host__ label from node name
+  #       - source_labels:
+  #         - __meta_kubernetes_pod_node_name
+  #         target_label: __host__
+  #       # Drop targets with empty __service__ label
+  #       - action: drop
+  #         regex: ^$
+  #         source_labels:
+  #         - __service__
+  #       # Set 'job' label as <namespace>/<service>
+  #       - action: replace
+  #         replacement: $1
+  #         separator: /
+  #         source_labels:
+  #         - __meta_kubernetes_namespace
+  #         - __service__
+  #         target_label: job
+  #       # Set 'namespace' label
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_namespace
+  #         target_label: namespace
+  #       # Set 'instance' label from pod name
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_pod_name
+  #         target_label: instance
+  #       # Set 'container_name' label
+  #       - action: replace
+  #         source_labels:
+  #         - __meta_kubernetes_pod_container_name
+  #         target_label: container_name
+  #       # Map all pod labels to log labels
+  #       - action: labelmap
+  #         regex: __meta_kubernetes_pod_label_(.+)
+  #       # Set log file path for this container
+  #       - replacement: /var/log/pods/*$1/*.log
+  #         separator: /
+  #         source_labels:
+  #         - __meta_kubernetes_pod_annotation_kubernetes_io_config_mirror
+  #         - __meta_kubernetes_pod_container_name
+  #         target_label: __path__

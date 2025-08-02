@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "loki.fullname" . }}
+  labels:
+    app: {{ include "loki.name" . }}
+spec:
+  type: {{ .Values.loki.service.type }}
+  ports:
+    - name: {{ .Values.loki.service.ports.name }}
+      port: {{ .Values.loki.service.ports.port }}
+      targetPort: {{ .Values.loki.service.ports.targetPort }}
+  selector:
+    app: {{ include "loki.name" . }}
