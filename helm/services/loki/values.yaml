@@ -1,0 +1,43 @@
+loki:
+  image: grafana/loki:2.8.2
+
+  service:
+    type: ClusterIP
+    ports:
+      port: 3100
+      targetPort: 3100
+      name: http
+
+  config:
+    name: loki-config
+
+  retention:
+    enabled: true
+    period: 168h
+
+  storage:
+    type: local # o azure / gcs / filesystem (local)
+
+    s3:
+      bucketnames: my-logs-bucket
+      endpoint: s3.amazonaws.com
+      access_key_id: YOUR_AWS_KEY
+      secret_access_key: YOUR_AWS_SECRET
+
+    azure:
+      container_name: my-container
+      account_name: myaccount
+      account_key: mykey
+
+    gcs:
+      bucket_name: my-gcs-bucket
+      service_account_json: |
+        {
+          "type": "service_account",
+          "project_id": "your-project-id",
+          "private_key_id": "xxx",
+          "private_key": "-----BEGIN PRIVATE KEY-----\\nXXX\\n-----END PRIVATE KEY-----\\n",
+          "client_email": "your-service-account@gcp-project.iam.gserviceaccount.com",
+          "client_id": "xxx",
+          ...
+        }
